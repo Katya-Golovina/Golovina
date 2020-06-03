@@ -1,3 +1,13 @@
+---6 За последние 4 недели выведите проданное количество единиц товара (Названия атрибутов: ID, Название товара, 1, 2, 3, 4 недели).
+
+
+select * from client_buys
+
+alter table client_buys add column quantity integer 
+update client_buys set quantity =10
+where id is not null
+
+alter table client_buys drop column buy_money 
 ---1.Для заданного города выведите ближайшие открытия магазинов
 --- магазин еще не открылся т.е. работа имено по тому адрессу в магазине не началась 
 SELECT sh.*
@@ -7,17 +17,7 @@ WHERE sh.citi = 'Москва' and sh.date_start > CURRENT_DATE
 SELECT sh.*
 FROM shop sh 
 WHERE sh.citi = 'Москва'and sh.date_finish is null and sh.date_start <CURRENT_DATE
----2Для заданного магазина вывести расписание работы его сотрудников на завтрашний день.
-ALTER TABLE staff_data ADD shop_id  integer REFERENCES shop(id) 
-INSERT INTO staff_data ( shop_id, employee_id, shedule, date_start ,date_finish) VALUES
-('352','1','пн','2015-09-21',null),
-('352','2','вт','2020-05-15',null),
-('352','3','чт','2016-11-13',null),
-('352','4','пт','2018-08-17',null),
-('352','5','сб','2019-09-19',null),
-('352','6','вс','2018-12-23',null),
-('352','7','чт','2020-05-26',null),
-('352','8','чт','2020-05-27',null)
+
 --- рассписание работает следующим образом четные id работников выходят в четные дни, нечентые в нечетные.CURRENT_DATE +1(day%2) when 0 thenemployee_id % 2  'четный день ' else 'нечетный день' end
 ---2Для заданного магазина вывести расписание работы его сотрудников на завтрашний день.
 SELECT sd.shop_id, sd.employee_id, em.name, em.sername
@@ -25,15 +25,28 @@ FROM staff_data sd, employee em
 WHERE shop_id = '352'  and shedule ='чт'
 
 ---3.Выведите клиентов, которые в любых магазинах компании за последние 14 дней потратили более 10000 рублей на покупки.
-SELECT * FROM client_buys
-ALTER TABLE client_buys ADD buy_money  integer 
-INSERT INTO client_buys (client_id, shop_product_id, date_buy,buy_money) VALUES
-('13','441','2020-05-21','15000'),
-('20','442','2020-06-01','12000'),
-('13','456','2020-05-21','15000')
-SELECT   em.name, em.sername ,cb.buy_money
-FROM employee em, client_buys cb
-WHERE buy_money>10000  and   CURRENT_DATE>'2020-05-20' and CURRENT_DATE<'2020-06-04'; 
+select cb.*
+from client_buys cb 
+ inner join shop_product sp on sp= cb.shop_product_id
+ inner join product pr on pr.id= sp.product_id
+ group dy  
+ 
+ 
+ 
+ 
+select* from prise_story 
+select* from product
+select* from stock
+
+
+
+
+
+
+
+
+
+
 ---4.Выведите 10% (можете увеличить процент) клиентов, которые потратили за последние 240 часов наибольшую сумму.240часов это 10 дней
 with tik as
 ( select b.client_id, sum(pr.price)
@@ -64,4 +77,105 @@ order by sum
 limit 5 )
 
 select avg(id)
+from xaz
+--- 9
+select pr.name, COALESCE(-wk2.w1, 0) as "Неделя - 2",COALESCE(-wk1.w1,0) as "Неделя - 1", pr.current_price as "Текущая", COALESCE(-wk3.w1,0) as "Следующая неделя", COALESCE(-wk4.w1,0) as "Неделя + 2"
+from product pr
+LEFT JOIN (
+select *, (100-(((prr.price::float) * 100)/(prr.current_price:: float )))::integer as "w1"
+from ( select pr.id, pr.current_price, ps.date_finish, ps.price
+from product pr
+inner join prise_story ps on pr.id = ps.product_id
+) as prr
+where (current_date - date_finish) <=7 and (current_date > date_finish)
+) as wk1
+ON pr.id = wk1.id
+LEFT JOIN (
+select *, (100-(((prr.price::float) * 100)/(prr.current_price:: float )))::integer as "w1"
+from ( select pr.id, pr.current_price, ps.date_finish, ps.price
+from product pr
+inner join prise_story ps on pr.id = ps.product_id
+) as prr
+where (current_date - date_finish) <=14 and (current_date > date_finish) and (current_date - date_finish) > 7
+) as wk2
+ON pr.id = wk2.id
+LEFT JOIN (
+select *, (100-(((prr.price::float) * 100)/(prr.current_price:: float )))::integer as "w1"
+from ( select pr.id, pr.current_price, ps.date_finish, ps.price
+from product pr
+inner join prise_story ps on pr.id = ps.product_id
+) as prr
+where (date_finish - current_date ) <=14 and (current_date < date_finish) 
+) as wk3
+ON pr.id = wk3.id
+LEFT JOIN (
+select *, (100-(((prr.price::float) * 100)/(prr.current_price:: float )))::integer as "w1"
+from ( select pr.id, pr.current_price, ps.date_finish, ps.price
+from product pr
+inner join prise_story ps on pr.id = ps.product_id
+) as prr
+where (date_finish - current_date ) >=14 and (current_date < date_finish) and (current_date - date_finish) < 21
+) as wk4
+ON pr.id = wk4.id
+from client cl, tik
+where cl.id=tik.client_id
+order by sum
+limit 5
+---5.На основе предыдущего запроса (сделайте его WITH) посчитайте среднюю сумму, потраченную этими клиентами.
+with xaz as
+(
+with tik as
+( select b.client_id, sum(pr.price)
+from client_buys b,prise_story pr
+where b.shop_product_id=pr.product_id and (extract(year from age(now(), b.date_buy))+extract(month from age(now(), b.date_buy))*12+extract(day from age(now(), b.date_buy)))<=10
+group by b.client_id
+)
+
+select cl.*
+from client cl, tik
+where cl.id=tik.client_id
+order by sum
+limit 5 )
+
+select avg(id)
+--- 9
+select pr.name, COALESCE(-wk2.w1, 0) as "Неделя - 2",COALESCE(-wk1.w1,0) as "Неделя - 1", pr.current_price as "Текущая", COALESCE(-wk3.w1,0) as "Следующая неделя", COALESCE(-wk4.w1,0) as "Неделя + 2"
+from product pr
+LEFT JOIN (
+select *, (100-(((prr.price::float) * 100)/(prr.current_price:: float )))::integer as "w1"
+from ( select pr.id, pr.current_price, ps.date_finish, ps.price
+from product pr
+inner join prise_story ps on pr.id = ps.product_id
+) as prr
+where (current_date - date_finish) <=7 and (current_date > date_finish)
+) as wk1
+ON pr.id = wk1.id
+LEFT JOIN (
+select *, (100-(((prr.price::float) * 100)/(prr.current_price:: float )))::integer as "w1"
+from ( select pr.id, pr.current_price, ps.date_finish, ps.price
+from product pr
+inner join prise_story ps on pr.id = ps.product_id
+) as prr
+where (current_date - date_finish) <=14 and (current_date > date_finish) and (current_date - date_finish) > 7
+) as wk2
+ON pr.id = wk2.id
+LEFT JOIN (
+select *, (100-(((prr.price::float) * 100)/(prr.current_price:: float )))::integer as "w1"
+from ( select pr.id, pr.current_price, ps.date_finish, ps.price
+from product pr
+inner join prise_story ps on pr.id = ps.product_id
+) as prr
+where (date_finish - current_date ) <=14 and (current_date < date_finish) 
+) as wk3
+ON pr.id = wk3.id
+LEFT JOIN (
+select *, (100-(((prr.price::float) * 100)/(prr.current_price:: float )))::integer as "w1"
+from ( select pr.id, pr.current_price, ps.date_finish, ps.price
+from product pr
+inner join prise_story ps on pr.id = ps.product_id
+) as prr
+where (date_finish - current_date ) >=14 and (current_date < date_finish) and (current_date - date_finish) < 21
+) as wk4
+ON pr.id = wk4.id
+
 from xaz
