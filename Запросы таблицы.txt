@@ -26,18 +26,18 @@ WHERE shop_id = '352'  and shedule ='чт'
 
 ---3.Выведите клиентов, которые в любых магазинах компании за последние 14 дней потратили более 10000 рублей на покупки.
 with buy as
+with buy as
 (
-select client.id as client_id, client.name , client.sername,cb.date_buy,sum (cb.quantity*pr.current_price)total
+select cb.client_id, cb.date_buy,sum (cb.quantity*pr.current_price)total
 from client_buys cb 
  inner join shop_product sp on sp.id= cb.shop_product_id
  inner join product pr on pr.id= sp.product_id
- group by client.id, client.name , client.sername   
+ group by cb.client_id, cb.date_buy  
  --order by client.id
  )
- select bu.name, bu.surname
+ select *
  from buy bu
- where total >10000 and (current_date-date_bue::date)<14 
-
+ where total >10000 and (current_date-date_buy::date)<14 
 
 
 
